@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/math"
+	"gopkg.in/natefinch/npipe.v2"
 	"github.com/satori/go.uuid"
 	"io/ioutil"
 	"math/big"
@@ -112,7 +113,7 @@ func feedMonkeys(fromAddress string, toAddress string, pwd string, monkeys []*Mo
 		if err != nil {
 			panic(err)
 		}
-		max, result := findMaxCombineV2(idInt, int(tmpNum * MULTIPLE), monkey.Mode)
+		max, result := findMaxCombineV2(idInt, int(tmpNum*MULTIPLE), monkey.Mode)
 		if len(result) <= 0 {
 			return
 		}
@@ -140,7 +141,7 @@ func feedMonkeys(fromAddress string, toAddress string, pwd string, monkeys []*Mo
 			time.Sleep(time.Millisecond * 200)
 
 		}
-		sendTranscation(fromAddress, ADDRESS, "0x6f05b59d3b20000",pwd)
+		sendTranscation(fromAddress, ADDRESS, "0x6f05b59d3b20000", pwd)
 		readResponse(socketConn)
 
 	}
@@ -148,11 +149,12 @@ func feedMonkeys(fromAddress string, toAddress string, pwd string, monkeys []*Mo
 }
 
 var dataDir = flag.String("dataDir", "~/Library/OTCWalletData", "geth dataDir  you cant get this by ps -ef | grep geth ")
+var proto = flag.String("proto", "unix", "ipc network ")
 
 func main() {
 	flag.Parse()
 	tmp := *dataDir
-	tmp = tmp + "/geth.ipc"
+	tmp = tmp
 	dataDir = &tmp
 
 	http.HandleFunc("/feedmonkeys", FeedMonkeys)
@@ -195,12 +197,22 @@ func readResponse(c net.Conn) (resp *Response, err error) {
 }
 
 func sendTranscation(from string, to string, value string, pwd string) (err error) {
+
 	if socketConn == nil {
-		socketConn, err = net.Dial("unix", *dataDir)
-		if err != nil {
-			panic(err)
+		if *proto=="windows"{
+			socketConn, err = npipe.Dial(*dataDir)
+			if err != nil {
+				panic(err)
+			}
+		}else{
+			socketConn, err = net.Dial("unix", *dataDir)
+			if err != nil {
+				panic(err)
+			}
 		}
+
 	}
+
 	transcation := Transcation{
 		From:  from,
 		To:    to,
@@ -246,23 +258,23 @@ func findMaxCombineV2(num int, limit int, mode string) (max int, result []int) {
 	if limit < num {
 		return
 	}
-	switch mode{
+	switch mode {
 	case "min":
-			times := int(limit / num)
-			max = times * num
-			for i := 0; i < times; i++ {
-				result = append(result, num)
-			}
-			return
+		times := int(limit / num)
+		max = times * num
+		for i := 0; i < times; i++ {
+			result = append(result, num)
+		}
+		return
 	case "max":
 		firstNum := int(limit / MULTIPLE)
 		lastNums := limit % MULTIPLE
-		if lastNums >= num{
-			max = firstNum * MULTIPLE + num
-		}else{
-			max = (firstNum -1)* MULTIPLE + num
+		if lastNums >= num {
+			max = firstNum*MULTIPLE + num
+		} else {
+			max = (firstNum-1)*MULTIPLE + num
 		}
-		result = append(result,max)
+		result = append(result, max)
 		return
 	}
 	return
